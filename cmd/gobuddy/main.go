@@ -19,6 +19,11 @@ func main() {
 		Description: "Get Go documentation for a package or symbol using 'go doc'",
 	}, tools.Godoc)
 
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "standards",
+		Description: "Fetch and aggregate coding standards from multiple sources (local files, git repositories). Supports priority-based aggregation and caching.",
+	}, tools.Standards)
+
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		log.Fatal(err)
 	}
