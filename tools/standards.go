@@ -32,7 +32,8 @@ type StandardsSource struct {
 
 // StandardsInput is the input for the fetch_coding_standards tool.
 type StandardsInput struct {
-	Sources       []StandardsSource `json:"sources,omitempty" jsonschema:"list of sources to fetch standards from (uses default sources if empty)"`
+	Preset        string            `json:"preset,omitempty" jsonschema:"preset name (e.g., google-go, uber-go, effective-go). If specified, uses preset sources instead of custom sources"`
+	Sources       []StandardsSource `json:"sources,omitempty" jsonschema:"list of sources to fetch standards from (uses default sources if empty and no preset specified)"`
 	IncludeSource bool              `json:"include_source,omitempty" jsonschema:"include source information in output"`
 	CacheDir      string            `json:"cache_dir,omitempty" jsonschema:"directory to cache cloned repos (defaults to system temp dir)"`
 }
@@ -53,8 +54,22 @@ func Standards(ctx context.Context, req *mcp.CallToolRequest, input StandardsInp
 		input.CacheDir = filepath.Join(os.TempDir(), "gobuddy-standards-cache")
 	}
 
-	// If no sources specified, use defaults
-	if len(input.Sources) == 0 {
+	// Determine sources
+	if input.Preset != "" {
+		// Use preset sources
+		presets := getPresets()
+		sources, ok := presets[input.Preset]
+		if !ok {
+			available := make([]string, 0, len(presets))
+			for name := range presets {
+				available = append(available, name)
+			}
+			sort.Strings(available)
+			return errorResult(fmt.Errorf("unknown preset: %s. Available presets: %v", input.Preset, available))
+		}
+		input.Sources = sources
+	} else if len(input.Sources) == 0 {
+		// Use default sources if no preset and no custom sources
 		input.Sources = getDefaultSources()
 	}
 
@@ -117,6 +132,43 @@ func getDefaultSources() []StandardsSource {
 			Files:    []string{"STANDARDS.md", "GO_GUIDELINES.md"},
 			Branch:   "main",
 			Priority: 10,
+		},
+	}
+}
+
+// getPresets returns a map of preset names to their StandardsSource configurations.
+func getPresets() map[string][]StandardsSource {
+	return map[string][]StandardsSource{
+		"google-go": {
+			{
+				Type:     "url",
+				Location: "https://raw.githubusercontent.com/google/styleguide/gh-pages/go/guide.md",
+				Priority: 1,
+			},
+			{
+				Type:     "url",
+				Location: "https://raw.githubusercontent.com/google/styleguide/gh-pages/go/decisions.md",
+				Priority: 2,
+			},
+			{
+				Type:     "url",
+				Location: "https://raw.githubusercontent.com/google/styleguide/gh-pages/go/best-practices.md",
+				Priority: 3,
+			},
+		},
+		"uber-go": {
+			{
+				Type:     "url",
+				Location: "https://raw.githubusercontent.com/uber-go/guide/master/style.md",
+				Priority: 1,
+			},
+		},
+		"effective-go": {
+			{
+				Type:     "url",
+				Location: "https://go.dev/doc/effective_go",
+				Priority: 1,
+			},
 		},
 	}
 }
