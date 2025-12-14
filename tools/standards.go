@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,9 +23,9 @@ const (
 
 // StandardsSource represents a source of coding standards.
 type StandardsSource struct {
-	Type     string   `json:"type" jsonschema:"type of source (local or git)"`
-	Location string   `json:"location" jsonschema:"file path for local sources or git URL for git sources"`
-	Files    []string `json:"files,omitempty" jsonschema:"specific markdown files to fetch from the source"`
+	Type     string   `json:"type" jsonschema:"type of source (local, git, or url)"`
+	Location string   `json:"location" jsonschema:"file path for local, git URL for git, or HTTP(S) URL for url sources"`
+	Files    []string `json:"files,omitempty" jsonschema:"specific markdown files to fetch from the source (not used for url type)"`
 	Branch   string   `json:"branch,omitempty" jsonschema:"git branch or tag to checkout (defaults to main)"`
 	Priority int      `json:"priority" jsonschema:"priority of this source (lower number = higher priority)"`
 }
@@ -126,6 +128,8 @@ func fetchSource(ctx context.Context, source StandardsSource, cacheDir string) (
 		return fetchLocalSource(source)
 	case "git":
 		return fetchGitSource(ctx, source, cacheDir)
+	case "url":
+		return fetchURLSource(ctx, source, cacheDir)
 	default:
 		return "", fmt.Errorf("unknown source type: %s", source.Type)
 	}
@@ -207,6 +211,57 @@ func fetchGitSource(ctx context.Context, source StandardsSource, cacheDir string
 	}
 
 	return content.String(), nil
+}
+
+// fetchURLSource fetches content from an HTTP(S) URL.
+func fetchURLSource(ctx context.Context, source StandardsSource, cacheDir string) (string, error) {
+	// Validate URL
+	if !strings.HasPrefix(source.Location, "http://") && !strings.HasPrefix(source.Location, "https://") {
+		return "", fmt.Errorf("url source must start with http:// or https://")
+	}
+
+	// Create cache key from URL
+	hash := sha256.Sum256([]byte(source.Location))
+	cacheFile := filepath.Join(cacheDir, hex.EncodeToString(hash[:])[:16]+".md")
+
+	// Check cache freshness
+	if !needsRefresh(filepath.Dir(cacheFile)) {
+		// Try to read from cache
+		if data, err := os.ReadFile(cacheFile); err == nil {
+			return string(data), nil
+		}
+	}
+
+	// Fetch from URL
+	req, err := http.NewRequestWithContext(ctx, "GET", source.Location, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch URL: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
+	}
+
+	// Read response body
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// Cache the content
+	if err := os.MkdirAll(filepath.Dir(cacheFile), 0755); err == nil {
+		os.WriteFile(cacheFile, data, 0644)
+		touchCacheTimestamp(filepath.Dir(cacheFile))
+	}
+
+	return string(data), nil
 }
 
 // needsRefresh checks if the cache needs to be refreshed.
