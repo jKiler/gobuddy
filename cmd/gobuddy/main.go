@@ -24,6 +24,11 @@ func main() {
 		Description: "Fetch and aggregate coding standards from multiple sources (local files, git repositories). Supports priority-based aggregation and caching.",
 	}, tools.Standards)
 
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "check",
+		Description: "Validate Go code against coding standards using LLM-based analysis. Provides detailed feedback on violations, suggestions for fixes, and positive aspects.",
+	}, tools.Check)
+
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		log.Fatal(err)
 	}
