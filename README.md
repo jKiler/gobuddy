@@ -51,6 +51,26 @@ Aggregate coding standards from local files and git repositories.
 
 Features: priority-based ordering, git caching (2 weeks), SSH auth support.
 
+### `review`
+
+Review Go code against coding standards. Writes standards to `.gobuddy/standards.md` and provides file paths for review.
+
+```json
+{
+  "path": "path/to/file_or_directory",
+  "preset": "google-go"
+}
+```
+
+Or with custom standards:
+
+```json
+{
+  "path": "path/to/file_or_directory",
+  "standards": "Your custom coding standards..."
+}
+```
+
 ## Development
 
 ```bash
