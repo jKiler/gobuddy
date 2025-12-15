@@ -12,23 +12,23 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// CheckInput is the input for the check tool.
-type CheckInput struct {
-	Path      string `json:"path" jsonschema:"file path or directory to check"`
-	Preset    string `json:"preset,omitempty" jsonschema:"standards preset to check against (e.g., google-go)"`
-	Standards string `json:"standards,omitempty" jsonschema:"custom standards text to check against"`
+// ReviewInput is the input for the review tool.
+type ReviewInput struct {
+	Path      string `json:"path" jsonschema:"file path or directory to review"`
+	Preset    string `json:"preset,omitempty" jsonschema:"standards preset to review against (e.g., google-go)"`
+	Standards string `json:"standards,omitempty" jsonschema:"custom standards text to review against"`
 }
 
-// CheckOutput is the output for the check tool.
-type CheckOutput struct {
+// ReviewOutput is the output for the review tool.
+type ReviewOutput struct {
 	Review   string `json:"review" jsonschema:"LLM code review with violations and suggestions"`
-	FilePath string `json:"file_path" jsonschema:"path that was checked"`
+	FilePath string `json:"file_path" jsonschema:"path that was reviewed"`
 }
 
-// Check validates Go code against coding standards using LLM-based analysis.
-func Check(ctx context.Context, req *mcp.CallToolRequest, input CheckInput) (
+// Review validates Go code against coding standards using LLM-based analysis.
+func Review(ctx context.Context, req *mcp.CallToolRequest, input ReviewInput) (
 	*mcp.CallToolResult,
-	CheckOutput,
+	ReviewOutput,
 	error,
 ) {
 	var standards string
@@ -40,26 +40,26 @@ func Check(ctx context.Context, req *mcp.CallToolRequest, input CheckInput) (
 		}
 		_, output, err := Standards(ctx, nil, standardsInput)
 		if err != nil {
-			return checkErrorResult(fmt.Errorf("failed to fetch preset standards: %w", err))
+			return reviewErrorResult(fmt.Errorf("failed to fetch preset standards: %w", err))
 		}
 		standards = output.Standards
 	} else if input.Standards != "" {
 		standards = input.Standards
 	} else {
-		return checkErrorResult(fmt.Errorf("either preset or standards must be provided"))
+		return reviewErrorResult(fmt.Errorf("either preset or standards must be provided"))
 	}
 
 	code, err := readCode(input.Path)
 	if err != nil {
-		return checkErrorResult(fmt.Errorf("failed to read code: %w", err))
+		return reviewErrorResult(fmt.Errorf("failed to read code: %w", err))
 	}
 
 	review, err := reviewCodeWithLLM(ctx, standards, code)
 	if err != nil {
-		return checkErrorResult(fmt.Errorf("failed to review code: %w", err))
+		return reviewErrorResult(fmt.Errorf("failed to review code: %w", err))
 	}
 
-	output := CheckOutput{
+	output := ReviewOutput{
 		Review:   review,
 		FilePath: input.Path,
 	}
@@ -172,12 +172,12 @@ Format as markdown with clear sections.`
 	return review.String(), nil
 }
 
-// checkErrorResult creates an error result for the check tool.
-func checkErrorResult(err error) (*mcp.CallToolResult, CheckOutput, error) {
+// reviewErrorResult creates an error result for the review tool.
+func reviewErrorResult(err error) (*mcp.CallToolResult, ReviewOutput, error) {
 	errMsg := fmt.Sprintf("Error: %v", err)
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: errMsg},
 		},
-	}, CheckOutput{}, err
+	}, ReviewOutput{}, err
 }

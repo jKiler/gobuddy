@@ -25,9 +25,9 @@ func main() {
 	}, tools.Standards)
 
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "check",
-		Description: "Validate Go code against coding standards using LLM-based analysis. Provides detailed feedback on violations, suggestions for fixes, and positive aspects.",
-	}, tools.Check)
+		Name:        "review",
+		Description: "Review Go code against coding standards using LLM-based analysis. Provides detailed feedback on violations, suggestions for fixes, and positive aspects.",
+	}, tools.Review)
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		log.Fatal(err)

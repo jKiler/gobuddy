@@ -98,17 +98,17 @@ func TestReadCode(t *testing.T) {
 	}
 }
 
-func TestCheckWithMissingStandards(t *testing.T) {
+func TestReviewWithMissingStandards(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "main.go")
 	os.WriteFile(testFile, []byte("package main\n\nfunc main() {}\n"), 0644)
 
-	input := CheckInput{
+	input := ReviewInput{
 		Path: testFile,
 		// Neither Preset nor Standards provided
 	}
 
-	_, _, err := Check(context.Background(), nil, input)
+	_, _, err := Review(context.Background(), nil, input)
 	if err == nil {
 		t.Error("expected error when neither preset nor standards provided")
 	}
@@ -118,17 +118,17 @@ func TestCheckWithMissingStandards(t *testing.T) {
 	}
 }
 
-func TestCheckWithInvalidPreset(t *testing.T) {
+func TestReviewWithInvalidPreset(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "main.go")
 	os.WriteFile(testFile, []byte("package main\n\nfunc main() {}\n"), 0644)
 
-	input := CheckInput{
+	input := ReviewInput{
 		Path:   testFile,
 		Preset: "nonexistent-preset",
 	}
 
-	_, _, err := Check(context.Background(), nil, input)
+	_, _, err := Review(context.Background(), nil, input)
 	if err == nil {
 		t.Error("expected error for invalid preset")
 	}
@@ -138,7 +138,7 @@ func TestCheckWithInvalidPreset(t *testing.T) {
 	}
 }
 
-func TestCheckWithCustomStandards(t *testing.T) {
+func TestReviewWithCustomStandards(t *testing.T) {
 	// Skip if no API key (this test would call the actual API)
 	if os.Getenv("ANTHROPIC_API_KEY") == "" {
 		t.Skip("ANTHROPIC_API_KEY not set, skipping LLM test")
@@ -159,14 +159,14 @@ func hello_world() {
 - All exported functions must have doc comments
 `
 
-	input := CheckInput{
+	input := ReviewInput{
 		Path:      testFile,
 		Standards: standards,
 	}
 
-	result, output, err := Check(context.Background(), nil, input)
+	result, output, err := Review(context.Background(), nil, input)
 	if err != nil {
-		t.Fatalf("Check failed: %v", err)
+		t.Fatalf("Review failed: %v", err)
 	}
 
 	if result == nil || len(result.Content) == 0 {
@@ -187,7 +187,7 @@ func hello_world() {
 	}
 }
 
-func TestCheckWithPreset(t *testing.T) {
+func TestReviewWithPreset(t *testing.T) {
 	// Skip if no API key or in short mode (network + API call)
 	if testing.Short() || os.Getenv("ANTHROPIC_API_KEY") == "" {
 		t.Skip("skipping LLM + network test")
@@ -203,14 +203,14 @@ func main() {
 `
 	os.WriteFile(testFile, []byte(code), 0644)
 
-	input := CheckInput{
+	input := ReviewInput{
 		Path:   testFile,
 		Preset: "google-go",
 	}
 
-	result, output, err := Check(context.Background(), nil, input)
+	result, output, err := Review(context.Background(), nil, input)
 	if err != nil {
-		t.Fatalf("Check with preset failed: %v", err)
+		t.Fatalf("Review with preset failed: %v", err)
 	}
 
 	if result == nil || len(result.Content) == 0 {
@@ -227,7 +227,7 @@ func main() {
 	}
 }
 
-func TestCheckDirectory(t *testing.T) {
+func TestReviewDirectory(t *testing.T) {
 	// Skip if no API key
 	if os.Getenv("ANTHROPIC_API_KEY") == "" {
 		t.Skip("ANTHROPIC_API_KEY not set, skipping LLM test")
@@ -243,14 +243,14 @@ func TestCheckDirectory(t *testing.T) {
 
 	standards := "Use clear, descriptive names"
 
-	input := CheckInput{
+	input := ReviewInput{
 		Path:      testDir,
 		Standards: standards,
 	}
 
-	result, output, err := Check(context.Background(), nil, input)
+	result, output, err := Review(context.Background(), nil, input)
 	if err != nil {
-		t.Fatalf("Check directory failed: %v", err)
+		t.Fatalf("Review directory failed: %v", err)
 	}
 
 	if result == nil {
@@ -267,9 +267,9 @@ func TestCheckDirectory(t *testing.T) {
 	}
 }
 
-func TestCheckErrorResultFormat(t *testing.T) {
+func TestReviewErrorResultFormat(t *testing.T) {
 	err := context.DeadlineExceeded
-	result, output, retErr := checkErrorResult(err)
+	result, output, retErr := reviewErrorResult(err)
 
 	if retErr == nil {
 		t.Error("expected error to be returned")
@@ -284,7 +284,7 @@ func TestCheckErrorResultFormat(t *testing.T) {
 	}
 }
 
-func TestCheckWithoutAPIKey(t *testing.T) {
+func TestReviewWithoutAPIKey(t *testing.T) {
 	// Ensure API key is not set
 	originalKey := os.Getenv("ANTHROPIC_API_KEY")
 	os.Unsetenv("ANTHROPIC_API_KEY")
@@ -306,14 +306,14 @@ func main() {
 
 	standards := "Use clear, descriptive names"
 
-	input := CheckInput{
+	input := ReviewInput{
 		Path:      testFile,
 		Standards: standards,
 	}
 
-	result, output, err := Check(context.Background(), nil, input)
+	result, output, err := Review(context.Background(), nil, input)
 	if err != nil {
-		t.Fatalf("Check failed: %v", err)
+		t.Fatalf("Review failed: %v", err)
 	}
 
 	if result == nil || len(result.Content) == 0 {
