@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/anthropics/anthropic-sdk-go"
-	"github.com/anthropics/anthropic-sdk-go/option"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -21,11 +19,11 @@ type ReviewInput struct {
 
 // ReviewOutput is the output for the review tool.
 type ReviewOutput struct {
-	Review   string `json:"review" jsonschema:"LLM code review with violations and suggestions"`
-	FilePath string `json:"file_path" jsonschema:"path that was reviewed"`
+	StandardsPath string   `json:"standards_path" jsonschema:"path to the coding standards file"`
+	FilePaths     []string `json:"file_paths" jsonschema:"paths to Go files to review"`
 }
 
-// Review validates Go code against coding standards using LLM-based analysis.
+// Review prepares Go code files for review against coding standards.
 func Review(ctx context.Context, req *mcp.CallToolRequest, input ReviewInput) (
 	*mcp.CallToolResult,
 	ReviewOutput,
@@ -49,127 +47,90 @@ func Review(ctx context.Context, req *mcp.CallToolRequest, input ReviewInput) (
 		return reviewErrorResult(fmt.Errorf("either preset or standards must be provided"))
 	}
 
-	code, err := readCode(input.Path)
+	standardsPath, err := writeStandardsFile(standards)
 	if err != nil {
-		return reviewErrorResult(fmt.Errorf("failed to read code: %w", err))
+		return reviewErrorResult(fmt.Errorf("failed to write standards file: %w", err))
 	}
 
-	review, err := reviewCodeWithLLM(ctx, standards, code)
+	filePaths, err := collectGoFiles(input.Path)
 	if err != nil {
-		return reviewErrorResult(fmt.Errorf("failed to review code: %w", err))
+		return reviewErrorResult(fmt.Errorf("failed to collect Go files: %w", err))
 	}
+
+	var message strings.Builder
+	message.WriteString("Please review the following Go files against the coding standards.\n\n")
+	message.WriteString(fmt.Sprintf("**Coding standards:** %s\n\n", standardsPath))
+	message.WriteString("**Files to review:**\n")
+	for _, path := range filePaths {
+		message.WriteString(fmt.Sprintf("- %s\n", path))
+	}
+	message.WriteString("\n")
+	message.WriteString("Read the standards file and each code file, then provide a detailed review identifying:\n")
+	message.WriteString("1. Violations of the standards with file:line references\n")
+	message.WriteString("2. Severity (error/warning/info)\n")
+	message.WriteString("3. Specific suggestions for fixes\n")
+	message.WriteString("4. Positive aspects of the code\n\n")
+	message.WriteString("Format your review as markdown with clear sections.")
 
 	output := ReviewOutput{
-		Review:   review,
-		FilePath: input.Path,
+		StandardsPath: standardsPath,
+		FilePaths:     filePaths,
 	}
 
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
-			&mcp.TextContent{Text: review},
+			&mcp.TextContent{Text: message.String()},
 		},
 	}, output, nil
 }
 
-// readCode reads Go code from a file or directory.
-func readCode(path string) (string, error) {
-	info, err := os.Stat(path)
-	if err != nil {
-		return "", err
+// writeStandardsFile writes coding standards to .gobuddy/standards.md.
+func writeStandardsFile(standards string) (string, error) {
+	gobuddyDir := ".gobuddy"
+	if err := os.MkdirAll(gobuddyDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create .gobuddy directory: %w", err)
 	}
 
+	standardsPath := filepath.Join(gobuddyDir, "standards.md")
+	if err := os.WriteFile(standardsPath, []byte(standards), 0644); err != nil {
+		return "", fmt.Errorf("failed to write standards file: %w", err)
+	}
+
+	return standardsPath, nil
+}
+
+// collectGoFiles collects all Go file paths from a file or directory.
+func collectGoFiles(path string) ([]string, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var filePaths []string
+
 	if info.IsDir() {
-		// Read all .go files in directory
-		var allCode strings.Builder
 		err := filepath.Walk(path, func(filePath string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
 			if !info.IsDir() && strings.HasSuffix(filePath, ".go") && !strings.HasSuffix(filePath, "_test.go") {
-				data, err := os.ReadFile(filePath)
-				if err != nil {
-					return err
-				}
-				allCode.WriteString(fmt.Sprintf("// File: %s\n", filePath))
-				allCode.Write(data)
-				allCode.WriteString("\n\n")
+				filePaths = append(filePaths, filePath)
 			}
 			return nil
 		})
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		if allCode.Len() == 0 {
-			return "", fmt.Errorf("no Go files found in directory")
+		if len(filePaths) == 0 {
+			return nil, fmt.Errorf("no Go files found in directory")
 		}
-		return allCode.String(), nil
+		return filePaths, nil
 	}
 
-	// Read single file
 	if !strings.HasSuffix(path, ".go") {
-		return "", fmt.Errorf("not a Go file: %s", path)
+		return nil, fmt.Errorf("not a Go file: %s", path)
 	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
-}
-
-// reviewCodeWithLLM uses Claude API to review code against standards.
-// If ANTHROPIC_API_KEY is not set, returns the complete prompt for manual review.
-func reviewCodeWithLLM(ctx context.Context, standards, code string) (string, error) {
-	prompt := `You are a Go code reviewer. Review the following code against these coding standards:
-
-<standards>
-` + standards + `
-</standards>
-
-<code>
-` + code + `
-</code>
-
-Provide a detailed review identifying:
-1. Violations of the standards with file:line references
-2. Severity (error/warning/info)
-3. Specific suggestions for fixes
-4. Positive aspects of the code
-
-Format as markdown with clear sections.`
-
-	apiKey := os.Getenv("ANTHROPIC_API_KEY")
-	if apiKey == "" {
-		// Return prompt for manual review when API key not configured
-		return "# LLM Prompt (API Key Not Configured)\n\n" + prompt, nil
-	}
-
-	client := anthropic.NewClient(
-		option.WithAPIKey(apiKey),
-	)
-
-	message, err := client.Messages.New(ctx, anthropic.MessageNewParams{
-		Model:     anthropic.ModelClaudeSonnet4_5_20250929,
-		MaxTokens: 8192,
-		Messages: []anthropic.MessageParam{
-			anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
-		},
-	})
-	if err != nil {
-		return "", fmt.Errorf("failed to call Claude API: %w", err)
-	}
-
-	// Extract text from response
-	var review strings.Builder
-	review.WriteString("# Code Review\n\n")
-
-	for _, contentBlock := range message.Content {
-		// Access the text field from the content block
-		if contentBlock.Type == "text" {
-			review.WriteString(contentBlock.Text)
-		}
-	}
-
-	return review.String(), nil
+	return []string{path}, nil
 }
 
 // reviewErrorResult creates an error result for the review tool.

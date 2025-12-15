@@ -26,7 +26,7 @@ func main() {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "review",
-		Description: "Review Go code against coding standards using LLM-based analysis. Provides detailed feedback on violations, suggestions for fixes, and positive aspects.",
+		Description: "Review Go code against coding standards. Writes standards to .gobuddy/standards.md and provides file paths for review.",
 	}, tools.Review)
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {

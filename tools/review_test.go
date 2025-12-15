@@ -6,16 +6,19 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-func TestReadCode(t *testing.T) {
+func TestCollectGoFiles(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	tests := []struct {
-		name     string
-		setup    func() string
-		wantErr  bool
-		contains string
+		name      string
+		setup     func() string
+		wantErr   bool
+		wantCount int
+		wantFiles []string
 	}{
 		{
 			name: "single Go file",
@@ -24,8 +27,8 @@ func TestReadCode(t *testing.T) {
 				os.WriteFile(file, []byte("package main\n\nfunc main() {}\n"), 0644)
 				return file
 			},
-			wantErr:  false,
-			contains: "package main",
+			wantErr:   false,
+			wantCount: 1,
 		},
 		{
 			name: "directory with Go files",
@@ -37,8 +40,8 @@ func TestReadCode(t *testing.T) {
 				os.WriteFile(filepath.Join(dir, "file_test.go"), []byte("package test\n\nfunc TestFoo(t *testing.T) {}\n"), 0644)
 				return dir
 			},
-			wantErr:  false,
-			contains: "func Foo()",
+			wantErr:   false,
+			wantCount: 2,
 		},
 		{
 			name: "non-Go file",
@@ -70,7 +73,7 @@ func TestReadCode(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			path := tt.setup()
-			code, err := readCode(path)
+			files, err := collectGoFiles(path)
 
 			if tt.wantErr {
 				if err == nil {
@@ -84,17 +87,55 @@ func TestReadCode(t *testing.T) {
 				return
 			}
 
-			if tt.contains != "" && !strings.Contains(code, tt.contains) {
-				t.Errorf("expected code to contain %q", tt.contains)
+			if len(files) != tt.wantCount {
+				t.Errorf("expected %d files, got %d", tt.wantCount, len(files))
 			}
 
-			// Verify test files are excluded from directories
-			if strings.HasSuffix(path, "testdir") {
-				if strings.Contains(code, "TestFoo") {
+			for _, file := range files {
+				if strings.HasSuffix(file, "_test.go") {
 					t.Error("test files should be excluded")
 				}
 			}
 		})
+	}
+}
+
+func TestWriteStandardsFile(t *testing.T) {
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(originalDir)
+
+	standards := "# Test Standards\nUse clear naming"
+
+	path, err := writeStandardsFile(standards)
+	if err != nil {
+		t.Fatalf("writeStandardsFile failed: %v", err)
+	}
+
+	expectedPath := ".gobuddy/standards.md"
+	if path != expectedPath {
+		t.Errorf("expected path %s, got %s", expectedPath, path)
+	}
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("failed to read standards file: %v", err)
+	}
+
+	if string(content) != standards {
+		t.Errorf("expected content %q, got %q", standards, string(content))
+	}
+
+	info, err := os.Stat(".gobuddy")
+	if err != nil {
+		t.Fatalf("expected .gobuddy directory to exist: %v", err)
+	}
+	if !info.IsDir() {
+		t.Error("expected .gobuddy to be a directory")
 	}
 }
 
@@ -105,7 +146,6 @@ func TestReviewWithMissingStandards(t *testing.T) {
 
 	input := ReviewInput{
 		Path: testFile,
-		// Neither Preset nor Standards provided
 	}
 
 	_, _, err := Review(context.Background(), nil, input)
@@ -139,12 +179,14 @@ func TestReviewWithInvalidPreset(t *testing.T) {
 }
 
 func TestReviewWithCustomStandards(t *testing.T) {
-	// Skip if no API key (this test would call the actual API)
-	if os.Getenv("ANTHROPIC_API_KEY") == "" {
-		t.Skip("ANTHROPIC_API_KEY not set, skipping LLM test")
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
 	}
-
 	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(originalDir)
+
 	testFile := filepath.Join(tmpDir, "main.go")
 	code := `package main
 
@@ -173,27 +215,44 @@ func hello_world() {
 		t.Error("expected non-empty result")
 	}
 
-	if output.Review == "" {
-		t.Error("expected non-empty review")
+	if output.StandardsPath == "" {
+		t.Error("expected non-empty StandardsPath")
 	}
 
-	if output.FilePath != testFile {
-		t.Errorf("expected FilePath %s, got %s", testFile, output.FilePath)
+	if len(output.FilePaths) != 1 {
+		t.Errorf("expected 1 file path, got %d", len(output.FilePaths))
 	}
 
-	// Review should mention the snake_case issue
-	if !strings.Contains(output.Review, "snake") && !strings.Contains(output.Review, "camel") {
-		t.Error("expected review to mention naming issue")
+	if output.FilePaths[0] != testFile {
+		t.Errorf("expected file path %s, got %s", testFile, output.FilePaths[0])
+	}
+
+	if _, err := os.Stat(output.StandardsPath); os.IsNotExist(err) {
+		t.Errorf("standards file does not exist at %s", output.StandardsPath)
+	}
+
+	resultText := result.Content[0].(*mcp.TextContent).Text
+	if !strings.Contains(resultText, "Please review") {
+		t.Error("expected result to contain review instructions")
+	}
+	if !strings.Contains(resultText, output.StandardsPath) {
+		t.Error("expected result to mention standards path")
 	}
 }
 
 func TestReviewWithPreset(t *testing.T) {
-	// Skip if no API key or in short mode (network + API call)
-	if testing.Short() || os.Getenv("ANTHROPIC_API_KEY") == "" {
-		t.Skip("skipping LLM + network test")
+	if testing.Short() {
+		t.Skip("skipping network test")
 	}
 
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
 	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(originalDir)
+
 	testFile := filepath.Join(tmpDir, "main.go")
 	code := `package main
 
@@ -217,27 +276,35 @@ func main() {
 		t.Error("expected non-empty result")
 	}
 
-	if output.Review == "" {
-		t.Error("expected non-empty review")
+	if output.StandardsPath == "" {
+		t.Error("expected non-empty StandardsPath")
 	}
 
-	// Should contain review header
-	if !strings.Contains(output.Review, "# Code Review") {
-		t.Error("expected review header")
+	if len(output.FilePaths) != 1 {
+		t.Errorf("expected 1 file path, got %d", len(output.FilePaths))
+	}
+
+	content, err := os.ReadFile(output.StandardsPath)
+	if err != nil {
+		t.Fatalf("failed to read standards file: %v", err)
+	}
+	if len(content) == 0 {
+		t.Error("expected non-empty standards file")
 	}
 }
 
 func TestReviewDirectory(t *testing.T) {
-	// Skip if no API key
-	if os.Getenv("ANTHROPIC_API_KEY") == "" {
-		t.Skip("ANTHROPIC_API_KEY not set, skipping LLM test")
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
 	}
-
 	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(originalDir)
+
 	testDir := filepath.Join(tmpDir, "project")
 	os.MkdirAll(testDir, 0755)
 
-	// Create multiple files
 	os.WriteFile(filepath.Join(testDir, "file1.go"), []byte("package main\n\nfunc Foo() {}\n"), 0644)
 	os.WriteFile(filepath.Join(testDir, "file2.go"), []byte("package main\n\nfunc Bar() {}\n"), 0644)
 
@@ -257,13 +324,19 @@ func TestReviewDirectory(t *testing.T) {
 		t.Error("expected non-nil result")
 	}
 
-	if output.Review == "" {
-		t.Error("expected non-empty review")
+	if output.StandardsPath == "" {
+		t.Error("expected non-empty StandardsPath")
 	}
 
-	// Should mention multiple files
-	if !strings.Contains(output.Review, "file1.go") && !strings.Contains(output.Review, "file2.go") {
-		t.Log("Review may not explicitly mention file names, checking for general content")
+	if len(output.FilePaths) != 2 {
+		t.Errorf("expected 2 file paths, got %d", len(output.FilePaths))
+	}
+
+	resultText := result.Content[0].(*mcp.TextContent).Text
+	for _, file := range output.FilePaths {
+		if !strings.Contains(resultText, filepath.Base(file)) {
+			t.Errorf("expected result to mention file %s", file)
+		}
 	}
 }
 
@@ -279,62 +352,11 @@ func TestReviewErrorResultFormat(t *testing.T) {
 		t.Error("expected error result with content")
 	}
 
-	if output.Review != "" {
-		t.Error("error output should have empty review")
-	}
-}
-
-func TestReviewWithoutAPIKey(t *testing.T) {
-	// Ensure API key is not set
-	originalKey := os.Getenv("ANTHROPIC_API_KEY")
-	os.Unsetenv("ANTHROPIC_API_KEY")
-	defer func() {
-		if originalKey != "" {
-			os.Setenv("ANTHROPIC_API_KEY", originalKey)
-		}
-	}()
-
-	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "main.go")
-	code := `package main
-
-func main() {
-    println("Hello, World!")
-}
-`
-	os.WriteFile(testFile, []byte(code), 0644)
-
-	standards := "Use clear, descriptive names"
-
-	input := ReviewInput{
-		Path:      testFile,
-		Standards: standards,
+	if output.StandardsPath != "" {
+		t.Error("error output should have empty StandardsPath")
 	}
 
-	result, output, err := Review(context.Background(), nil, input)
-	if err != nil {
-		t.Fatalf("Review failed: %v", err)
-	}
-
-	if result == nil || len(result.Content) == 0 {
-		t.Error("expected non-empty result")
-	}
-
-	if output.Review == "" {
-		t.Error("expected non-empty review")
-	}
-
-	// Should contain prompt header indicating API key not configured
-	if !strings.Contains(output.Review, "API Key Not Configured") {
-		t.Error("expected review to indicate API key not configured")
-	}
-
-	// Should contain the actual prompt content
-	if !strings.Contains(output.Review, standards) {
-		t.Error("expected review to contain standards")
-	}
-
-	if !strings.Contains(output.Review, code) {
-		t.Error("expected review to contain code")
+	if len(output.FilePaths) != 0 {
+		t.Error("error output should have empty FilePaths")
 	}
 }

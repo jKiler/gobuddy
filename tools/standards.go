@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	defaultCacheDuration = 336 * time.Hour // 2 weeks (1 sprint)
+	defaultCacheDuration = 336 * time.Hour // 2 weeks
 )
 
 // StandardsSource represents a source of coding standards.
@@ -118,6 +118,8 @@ func Standards(ctx context.Context, req *mcp.CallToolRequest, input StandardsInp
 }
 
 // getDefaultSources returns the default sources for coding standards.
+// Note: The git source is an example and will fail unless customized to point
+// to an actual repository. Users should specify their own sources or use presets.
 func getDefaultSources() []StandardsSource {
 	return []StandardsSource{
 		{
@@ -128,7 +130,7 @@ func getDefaultSources() []StandardsSource {
 		},
 		{
 			Type:     "git",
-			Location: "git@github.com:your-org/go-standards.git",
+			Location: "git@github.com:your-org/go-standards.git", // Example placeholder
 			Files:    []string{"STANDARDS.md", "GO_GUIDELINES.md"},
 			Branch:   "main",
 			Priority: 10,
@@ -224,7 +226,7 @@ func fetchGitSource(ctx context.Context, source StandardsSource, cacheDir string
 
 	// Check if cache exists and is fresh
 	if needsRefresh(repoDir) {
-		// Remove old cache
+		// Remove old cache if it exists; ignore errors as we'll clone fresh anyway
 		os.RemoveAll(repoDir)
 
 		// Clone the repository
