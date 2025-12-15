@@ -117,16 +117,8 @@ func readCode(path string) (string, error) {
 }
 
 // reviewCodeWithLLM uses Claude API to review code against standards.
+// If ANTHROPIC_API_KEY is not set, returns the complete prompt for manual review.
 func reviewCodeWithLLM(ctx context.Context, standards, code string) (string, error) {
-	apiKey := os.Getenv("ANTHROPIC_API_KEY")
-	if apiKey == "" {
-		return "", fmt.Errorf("ANTHROPIC_API_KEY environment variable not set")
-	}
-
-	client := anthropic.NewClient(
-		option.WithAPIKey(apiKey),
-	)
-
 	prompt := `You are a Go code reviewer. Review the following code against these coding standards:
 
 <standards>
@@ -144,6 +136,16 @@ Provide a detailed review identifying:
 4. Positive aspects of the code
 
 Format as markdown with clear sections.`
+
+	apiKey := os.Getenv("ANTHROPIC_API_KEY")
+	if apiKey == "" {
+		// Return prompt for manual review when API key not configured
+		return "# LLM Prompt (API Key Not Configured)\n\n" + prompt, nil
+	}
+
+	client := anthropic.NewClient(
+		option.WithAPIKey(apiKey),
+	)
 
 	message, err := client.Messages.New(ctx, anthropic.MessageNewParams{
 		Model:     anthropic.ModelClaudeSonnet4_5_20250929,

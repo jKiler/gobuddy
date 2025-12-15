@@ -283,3 +283,58 @@ func TestCheckErrorResultFormat(t *testing.T) {
 		t.Error("error output should have empty review")
 	}
 }
+
+func TestCheckWithoutAPIKey(t *testing.T) {
+	// Ensure API key is not set
+	originalKey := os.Getenv("ANTHROPIC_API_KEY")
+	os.Unsetenv("ANTHROPIC_API_KEY")
+	defer func() {
+		if originalKey != "" {
+			os.Setenv("ANTHROPIC_API_KEY", originalKey)
+		}
+	}()
+
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "main.go")
+	code := `package main
+
+func main() {
+    println("Hello, World!")
+}
+`
+	os.WriteFile(testFile, []byte(code), 0644)
+
+	standards := "Use clear, descriptive names"
+
+	input := CheckInput{
+		Path:      testFile,
+		Standards: standards,
+	}
+
+	result, output, err := Check(context.Background(), nil, input)
+	if err != nil {
+		t.Fatalf("Check failed: %v", err)
+	}
+
+	if result == nil || len(result.Content) == 0 {
+		t.Error("expected non-empty result")
+	}
+
+	if output.Review == "" {
+		t.Error("expected non-empty review")
+	}
+
+	// Should contain prompt header indicating API key not configured
+	if !strings.Contains(output.Review, "API Key Not Configured") {
+		t.Error("expected review to indicate API key not configured")
+	}
+
+	// Should contain the actual prompt content
+	if !strings.Contains(output.Review, standards) {
+		t.Error("expected review to contain standards")
+	}
+
+	if !strings.Contains(output.Review, code) {
+		t.Error("expected review to contain code")
+	}
+}
