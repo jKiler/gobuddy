@@ -289,11 +289,15 @@ make release-check
 This plan is written to be driven by an agent loop (e.g. `/loop`):
 
 1. Find the first milestone whose heading checkbox is `[ ]`.
-2. Implement it on branch `claude/codebase-modernization-plan-uhfx78`.
+2. Implement it on branch `claude/codebase-modernization-plan-uhfx78`. If
+   the previous milestone's PR has merged, restart the branch from
+   `origin/main` first (`git checkout -B <branch> origin/main`); if it
+   hasn't merged yet, wait — each milestone builds on the previous one.
 3. Run that milestone's **Verify** block; every command must exit 0. Also
    re-run `make check` (the M0 gate) regardless of milestone.
 4. On success: flip the milestone's `[ ]` to `[x]` in this file, commit all
-   changes with message `feat(mN): <milestone title>`, push.
+   changes with message `feat(mN): <milestone title>`, push, and open a
+   **new PR for that milestone** (one PR per iteration).
 5. On failure: fix and re-verify within the same iteration; do not advance
    with a red Verify block. If genuinely blocked, record the blocker under a
    `## Blockers` section appended to this file and stop.
