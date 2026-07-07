@@ -155,7 +155,7 @@ grep -rn 'ReadOnlyHint' cmd/ tools/ | grep -q .
 make check
 ```
 
-### M2 — MCP-surface integration test `[ ]`
+### M2 — MCP-surface integration test `[x]`
 
 Add `cmd/gobuddy` (or `tools`) integration test using the SDK's in-memory
 transport: connect a client, `ListTools`, assert the exact expected tool set,
