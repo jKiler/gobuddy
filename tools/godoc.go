@@ -34,12 +34,15 @@ func Godoc(ctx context.Context, req *mcp.CallToolRequest, input GodocInput) (
 	cmd := exec.CommandContext(ctx, "go", args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		// Lookup failures (unknown package or symbol) are expected tool
+		// outcomes, not protocol errors, so report them via IsError.
 		errMsg := fmt.Sprintf("go doc failed: %v\nOutput: %s", err, string(output))
 		return &mcp.CallToolResult{
+			IsError: true,
 			Content: []mcp.Content{
 				&mcp.TextContent{Text: errMsg},
 			},
-		}, GodocOutput{}, fmt.Errorf("go doc failed: %w", err)
+		}, GodocOutput{}, nil
 	}
 
 	doc := string(output)

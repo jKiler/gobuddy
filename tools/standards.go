@@ -230,12 +230,15 @@ func touchCacheTimestamp(repoDir string) {
 	f.Close()
 }
 
-// errorResult creates an error result for the MCP tool.
+// errorResult creates an IsError tool result for expected failures, keeping
+// the Go error nil so the failure is reported in-band rather than as a
+// protocol error.
 func errorResult(err error) (*mcp.CallToolResult, StandardsOutput, error) {
 	errMsg := fmt.Sprintf("Error: %v", err)
 	return &mcp.CallToolResult{
+		IsError: true,
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: errMsg},
 		},
-	}, StandardsOutput{}, err
+	}, StandardsOutput{}, nil
 }
