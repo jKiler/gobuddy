@@ -118,7 +118,7 @@ command exits 0**. This is the loop contract (see §4).
 
 > Run all verification commands from the repo root.
 
-### M0 — Baseline gate (CI + hygiene) `[ ]`
+### M0 — Baseline gate (CI + hygiene) `[x]`
 
 Create the gate we'll hold every later step to.
 

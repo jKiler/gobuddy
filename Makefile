@@ -18,6 +18,16 @@ test:
 fmt:
 	$(GOFMT) -w .
 
+.PHONY: check
+check:
+	@unformatted="$$($(GOFMT) -l .)"; \
+	if [ -n "$$unformatted" ]; then \
+		echo "gofmt violations:"; echo "$$unformatted"; exit 1; \
+	fi
+	$(GO) vet ./...
+	$(GO) build ./...
+	$(GO) test ./...
+
 .PHONY: clean
 clean:
 	rm -rf bin
@@ -29,4 +39,5 @@ help:
 	@echo "  build  - Build gobuddy binary"
 	@echo "  test   - Run unit tests with coverage"
 	@echo "  fmt    - Format all Go code"
+	@echo "  check  - Run fmt check, vet, build, and tests (CI gate)"
 	@echo "  clean  - Remove build artifacts"
