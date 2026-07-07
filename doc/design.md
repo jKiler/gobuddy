@@ -189,7 +189,7 @@ grep -q 'Migrating from v1' README.md
 make check                                  # includes updated surface test
 ```
 
-### M4 — `godoc` v2: module-aware and structured `[ ]`
+### M4 — `godoc` v2: module-aware and structured `[x]`
 
 1. Add `working_dir` input (optional; default: server cwd) — validated to be
    an existing directory containing a resolvable module — and run

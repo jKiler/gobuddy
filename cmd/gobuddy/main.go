@@ -29,7 +29,7 @@ func newServer() *mcp.Server {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "godoc",
-		Description: "Get Go documentation for a package or symbol using 'go doc'",
+		Description: "Get Go documentation for a package or symbol using 'go doc'. Set working_dir to the target module so dependency versions resolve correctly; mode selects doc (default), all (full package docs), or src (symbol source).",
 		Annotations: &mcp.ToolAnnotations{
 			Title:        "Go Documentation",
 			ReadOnlyHint: true,
