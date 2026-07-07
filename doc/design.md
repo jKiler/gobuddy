@@ -168,7 +168,7 @@ go test ./... -run 'TestServer' -v | grep -q 'PASS'
 make check
 ```
 
-### M3 — Retire `standards`, land the `go-standards` skill `[ ]`
+### M3 — Retire `standards`, land the `go-standards` skill `[x]`
 
 1. Delete `tools/standards.go` + `tools/standards_test.go`; unregister from
    `main.go`; update the M2 surface test's expected tool list.
