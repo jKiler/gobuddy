@@ -237,7 +237,7 @@ go test ./... -run 'TestServer' -v | grep -q 'PASS'   # surface test updated
 make check
 ```
 
-### M6 — Plugin packaging (the flip) `[ ]`
+### M6 — Plugin packaging (the flip) `[x]`
 
 1. `.claude-plugin/plugin.json`: name `gobuddy`, description, version,
    `mcpServers` entry pointing at the built binary (`${CLAUDE_PLUGIN_ROOT}`),

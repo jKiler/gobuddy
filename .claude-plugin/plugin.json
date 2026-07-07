@@ -1,0 +1,16 @@
+{
+  "name": "gobuddy",
+  "description": "Go coding buddy: module-aware Go documentation and a one-call quality gate (gofmt, vet, tests) as MCP tools, a go-standards skill, a gofmt/vet enforcement hook, and a /gobuddy:check command.",
+  "version": "2.0.0",
+  "author": {
+    "name": "jKiler"
+  },
+  "homepage": "https://github.com/jKiler/gobuddy",
+  "keywords": ["go", "golang", "godoc", "quality-gate", "mcp"],
+  "mcpServers": {
+    "gobuddy": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/gobuddy"
+    }
+  },
+  "hooks": "./hooks/hooks.json"
+}

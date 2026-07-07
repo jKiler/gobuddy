@@ -1,20 +1,38 @@
 # gobuddy
 
-MCP server for Go development assistance.
+Go coding buddy for AI agents: a Claude Code plugin (skills, hooks, slash
+command) built around a standalone MCP server with module-aware Go tools.
 
-## Installation
+## Install as a Claude Code plugin (recommended)
+
+```
+/plugin marketplace add jKiler/gobuddy
+/plugin install gobuddy@gobuddy
+```
+
+Then build the MCP server binary once inside the installed plugin directory:
 
 ```bash
 make build
 ```
 
-## Usage
+The plugin bundles:
+
+- **MCP tools** — `godoc` and `gocheck` (see below)
+- **`go-standards` skill** — Go idioms loaded on demand while writing or
+  reviewing Go code
+- **PostToolUse hook** — after any edit to a `.go` file, checks `gofmt -l`
+  and `go vet` on the touched package and feeds violations back immediately
+- **`/gobuddy:check` command** — runs the quality gate and fixes what it
+  reports
+
+## Install as a standalone MCP server
+
+Any MCP client can use the server directly:
 
 ```bash
-./bin/gobuddy
+make build
 ```
-
-Configure in your MCP client (e.g., Claude Desktop):
 
 ```json
 {
@@ -30,10 +48,23 @@ Configure in your MCP client (e.g., Claude Desktop):
 
 ### `godoc`
 
-Get Go documentation for packages and symbols.
+Module-aware Go documentation for packages and symbols. Set `working_dir`
+to the target module so dependency versions resolve correctly; `mode`
+selects `doc` (default), `all` (full package docs), or `src` (symbol
+source).
 
 ```json
-{"package": "fmt", "symbol": "Printf"}
+{"package": "fmt", "symbol": "Printf", "working_dir": "/path/to/project", "mode": "doc"}
+```
+
+### `gocheck`
+
+One-call quality gate: runs `gofmt -l`, `go vet`, and `go test` for a
+module and returns a compact structured report — unformatted files, vet
+issues, and failing tests with truncated output tails.
+
+```json
+{"working_dir": "/path/to/project", "packages": ["./..."], "include_tests": true}
 ```
 
 ## Skills
@@ -58,5 +89,6 @@ project's `CLAUDE.md` instead.
 make build   # Build binaries
 make test    # Run tests
 make fmt     # Format code
+make check   # Run the CI gate (fmt check, vet, build, tests)
 make clean   # Clean build artifacts
 ```
