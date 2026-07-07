@@ -49,7 +49,7 @@ func TestServerSurface(t *testing.T) {
 	}
 	sort.Strings(got)
 
-	want := []string{"godoc"}
+	want := []string{"gocheck", "godoc"}
 	if len(got) != len(want) {
 		t.Fatalf("tool surface = %v, want %v", got, want)
 	}

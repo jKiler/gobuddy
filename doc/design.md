@@ -213,7 +213,7 @@ GOFLAGS=-mod=mod go test ./... -count=1
 make check
 ```
 
-### M5 — New tool: `gocheck` (the loop-friendly quality gate) `[ ]`
+### M5 — New tool: `gocheck` (the loop-friendly quality gate) `[x]`
 
 One structured call replacing three shell round-trips:
 

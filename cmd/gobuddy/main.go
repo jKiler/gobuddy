@@ -36,6 +36,19 @@ func newServer() *mcp.Server {
 		},
 	}, tools.Godoc)
 
+	// gocheck only reads the target module (test binaries write nothing
+	// user-visible) and shells out to the local toolchain only.
+	closedWorld := false
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "gocheck",
+		Description: "Run gofmt, go vet, and the test suite for a Go module in one call and return a compact structured report: unformatted files, vet issues, and failing tests with truncated output.",
+		Annotations: &mcp.ToolAnnotations{
+			Title:         "Go Quality Gate",
+			ReadOnlyHint:  true,
+			OpenWorldHint: &closedWorld,
+		},
+	}, tools.Gocheck)
+
 	return server
 }
 
