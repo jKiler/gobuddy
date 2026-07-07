@@ -75,6 +75,24 @@ Go coding standards (formatting, naming, error handling, testing) shipped as
 an [Agent Skill](skills/go-standards/SKILL.md), loaded on demand by
 skill-aware hosts such as Claude Code.
 
+## Architecture
+
+Each layer owns what it does best — MCP for computation, skills for
+knowledge, hooks for guaranteed enforcement:
+
+```
+.claude-plugin/        plugin + marketplace manifests
+skills/go-standards/   Go idioms as an on-demand Agent Skill
+hooks/                 PostToolUse gofmt/vet enforcement
+commands/              /gobuddy:check quality-gate loop
+cmd/gobuddy/           stdio MCP server (standalone-capable)
+tools/                 MCP tools: godoc, gocheck
+internal/run/          subprocess execution with timeouts
+```
+
+The full design rationale and milestone history live in
+[doc/design.md](doc/design.md).
+
 ## Migrating from v1
 
 The `standards` MCP tool was removed. Coding-standards distribution is now

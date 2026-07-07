@@ -264,7 +264,7 @@ grep -q 'marketplace add' README.md
 make check
 ```
 
-### M7 — Release polish `[ ]`
+### M7 — Release polish `[x]`
 
 1. README rewrite around the new shape (plugin first; tools reference;
    architecture sketch).
