@@ -18,7 +18,10 @@ func version() string {
 	return "(unknown)"
 }
 
-func main() {
+// newServer builds the gobuddy MCP server with its full tool surface,
+// separated from main so tests can connect to it over an in-memory
+// transport.
+func newServer() *mcp.Server {
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    "gobuddy",
 		Version: version(),
@@ -42,7 +45,11 @@ func main() {
 		},
 	}, tools.Standards)
 
-	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
+	return server
+}
+
+func main() {
+	if err := newServer().Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		log.Fatal(err)
 	}
 }
