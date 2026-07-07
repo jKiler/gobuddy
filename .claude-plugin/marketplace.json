@@ -1,0 +1,13 @@
+{
+  "name": "gobuddy",
+  "owner": {
+    "name": "jKiler"
+  },
+  "plugins": [
+    {
+      "name": "gobuddy",
+      "source": "./",
+      "description": "Go coding buddy: module-aware Go documentation and a one-call quality gate (gofmt, vet, tests) as MCP tools, a go-standards skill, a gofmt/vet enforcement hook, and a /gobuddy:check command."
+    }
+  ]
+}
