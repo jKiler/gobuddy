@@ -1,13 +1,6 @@
 # Go Coding Standards
 
-## Project-Level Standards
-
-These are the local coding standards for this project.
-
-### Error Handling
-- Always handle errors explicitly
-- Use `fmt.Errorf` with `%w` to wrap errors with context
-
-### Testing
-- Write table-driven tests
-- Aim for >80% code coverage
+The project's Go coding standards live in the
+[`go-standards` skill](skills/go-standards/SKILL.md), which is the single
+source of truth. It is loaded on demand by agents (Claude Code and other
+skill-aware hosts) and readable as plain markdown by everyone else.

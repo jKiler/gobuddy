@@ -36,15 +36,6 @@ func newServer() *mcp.Server {
 		},
 	}, tools.Godoc)
 
-	mcp.AddTool(server, &mcp.Tool{
-		Name:        "standards",
-		Description: "Fetch and aggregate coding standards from multiple sources (local files, git repositories). Supports priority-based aggregation and caching.",
-		Annotations: &mcp.ToolAnnotations{
-			Title:        "Coding Standards",
-			ReadOnlyHint: true,
-		},
-	}, tools.Standards)
-
 	return server
 }
 

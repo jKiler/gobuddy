@@ -36,20 +36,21 @@ Get Go documentation for packages and symbols.
 {"package": "fmt", "symbol": "Printf"}
 ```
 
-### `standards`
+## Skills
 
-Aggregate coding standards from local files and git repositories.
+### `go-standards`
 
-```json
-{
-  "sources": [
-    {"type": "local", "location": ".", "files": ["CODING_STANDARDS.md"], "priority": 1},
-    {"type": "git", "location": "git@github.com:org/standards.git", "files": ["STANDARDS.md"], "priority": 10}
-  ]
-}
-```
+Go coding standards (formatting, naming, error handling, testing) shipped as
+an [Agent Skill](skills/go-standards/SKILL.md), loaded on demand by
+skill-aware hosts such as Claude Code.
 
-Features: priority-based ordering, git caching (2 weeks), SSH auth support.
+## Migrating from v1
+
+The `standards` MCP tool was removed. Coding-standards distribution is now
+handled natively by agent hosts: project instructions (`CLAUDE.md`), the
+`go-standards` skill in this repo, and built-in review commands. If you
+aggregated standards from a git repository, copy them into a skill or your
+project's `CLAUDE.md` instead.
 
 ## Development
 
