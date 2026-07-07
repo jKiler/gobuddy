@@ -28,6 +28,18 @@ check:
 	$(GO) build ./...
 	$(GO) test ./...
 
+.PHONY: release-check
+release-check: check
+	jq empty .claude-plugin/plugin.json
+	jq empty .claude-plugin/marketplace.json
+	jq -e '.name == "gobuddy"' .claude-plugin/plugin.json > /dev/null
+	bash -n hooks/gofmt-check.sh
+	test -x hooks/gofmt-check.sh
+	test -f commands/check.md
+	test -f skills/go-standards/SKILL.md
+	test -f CHANGELOG.md
+	@echo "release-check: OK"
+
 .PHONY: clean
 clean:
 	rm -rf bin
@@ -40,4 +52,5 @@ help:
 	@echo "  test   - Run unit tests with coverage"
 	@echo "  fmt    - Format all Go code"
 	@echo "  check  - Run fmt check, vet, build, and tests (CI gate)"
+	@echo "  release-check - Run check plus plugin manifest and hook validation"
 	@echo "  clean  - Remove build artifacts"
