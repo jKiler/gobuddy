@@ -135,7 +135,7 @@ test -z "$(gofmt -l .)"
 go vet ./...
 ```
 
-### M1 — Dependency & SDK modernization `[ ]`
+### M1 — Dependency & SDK modernization `[x]`
 
 1. `go get github.com/modelcontextprotocol/go-sdk@v1.6.1 && go mod tidy`.
 2. Fix any breakage from the v1.1→v1.6 jump.

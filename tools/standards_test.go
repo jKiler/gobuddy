@@ -62,16 +62,20 @@ func TestFetchCodingStandards(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, output, err := Standards(context.Background(), nil, tt.input)
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
 
 			if tt.wantErr {
-				if err == nil {
-					t.Error("expected error, got nil")
+				if result == nil || !result.IsError {
+					t.Error("expected IsError result")
 				}
 				return
 			}
 
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
+			if result != nil && result.IsError {
+				t.Error("unexpected IsError result")
 				return
 			}
 
